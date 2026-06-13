@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAHU &amp; GAVI — El Ídolo del Sol</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐆</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jersey+10&family=Pixelify+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#ffce4a; --gold-dark:#c98a1b; --wood:#5a3320; --wood-dark:#3d2113;
+    --cream:#ffeec8; --dusk:#2a1640; --magenta:#c84a8a;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ width:100%; height:100%; overflow:hidden; background:#1a0e2e; }
+  body{ font-family:'Pixelify Sans', monospace; user-select:none; -webkit-user-select:none; cursor:default; }
+
+  #game{
+    position:fixed; inset:0; width:100vw; height:100vh; display:block;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+  }
+
+  /* CRT-ish scanlines + vignette */
+  #crt{
+    position:fixed; inset:0; pointer-events:none; z-index:40;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 3px),
+      radial-gradient(ellipse at center, transparent 55%, rgba(20,5,35,.45) 100%);
+    mix-blend-mode:multiply;
+  }
+
+  /* ============ HUD ============ */
+  #hud{ position:fixed; inset:0; pointer-events:none; z-index:30; display:none; }
+  .hud-corner{ position:absolute; display:flex; flex-direction:column; gap:8px; }
+  #hud-tl{ top:16px; left:18px; }
+  #hud-tr{ top:16px; right:18px; align-items:flex-end; }
+  .hud-row{
+    display:flex; align-items:center; gap:8px;
+    filter: drop-shadow(2px 3px 0 rgba(20,5,35,.55));
+  }
+  .hud-row canvas{ width:34px; height:34px; image-rendering:pixelated; }
+  .hud-num{
+    font-family:'Jersey 10'; font-size:34px; line-height:1; color:var(--cream);
+    text-shadow: 2px 2px 0 #3d1530; letter-spacing:1px; min-width:50px;
+  }
+  #hud-tr .hud-num{ text-align:right; }
+  #health{ display:flex; gap:3px; }
+  #health canvas{ width:30px; height:30px; image-rendering:pixelated; transition:transform .15s; }
+  #health canvas.lost{ filter:grayscale(1) brightness(.45); transform:scale(.85); }
+  #orchid-slots{ display:flex; gap:4px; }
+  #orchid-slots canvas{ width:30px; height:30px; image-rendering:pixelated; }
+  #orchid-slots canvas.empty{ filter:grayscale(1) brightness(.4) contrast(.7); }
+
+  #hint{
+    position:absolute; bottom:26px; left:50%; transform:translateX(-50%);
+    font-family:'Jersey 10'; font-size:30px; color:var(--cream);
+    background:rgba(40,16,56,.78); border:3px solid var(--gold-dark);
+    border-radius:4px; padding:4px 18px 6px; text-shadow:2px 2px 0 #2a0a20;
+    opacity:0; transition:opacity .25s; white-space:nowrap;
+  }
+  #hint.show{ opacity:1; }
+  #hint b{ color:var(--gold); font-weight:inherit; }
+
+  /* event banner */
+  #banner{
+    position:absolute; top:18%; left:50%; transform:translateX(-50%) scale(0);
+    text-align:center; transition:transform .28s cubic-bezier(.2,1.8,.4,1);
+  }
+  #banner.show{ transform:translateX(-50%) scale(1); }
+  #banner h2{
+    font-family:'Jersey 10'; font-size:64px; color:var(--gold); line-height:.9;
+    text-shadow: 3px 3px 0 #7a2f12, 6px 6px 0 rgba(20,5,35,.5);
+    -webkit-text-stroke: 1px #7a2f12;
+  }
+  #banner p{
+    font-family:'Jersey 10'; font-size:30px; color:var(--cream);
+    text-shadow:2px 2px 0 rgba(20,5,35,.7); margin-top:2px;
+  }
+
+  /* air meter (diving) */
+  #air{
+    display:none; width:170px; height:16px; margin-top:4px;
+    background:rgba(20,8,35,.7); border:3px solid var(--gold-dark); border-radius:4px;
+    filter: drop-shadow(2px 3px 0 rgba(20,5,35,.55));
+    overflow:hidden;
+  }
+  #air-fill{
+    height:100%; width:100%;
+    background:linear-gradient(90deg,#7ee0ff,#3eafd8);
+    transition:width .15s linear;
+  }
+
+  /* underwater tint */
+  #underwater{
+    position:fixed; inset:0; pointer-events:none; z-index:25; opacity:0;
+    background:
+      linear-gradient(180deg, rgba(30,110,130,.22), rgba(8,45,70,.5));
+    transition:opacity .35s;
+  }
+
+  #vignette-dmg{
+    position:fixed; inset:0; pointer-events:none; z-index:35; opacity:0;
+    background:radial-gradient(ellipse at center, transparent 45%, rgba(200,30,40,.55) 100%);
+    transition:opacity .1s;
+  }
+  #fader{
+    position:fixed; inset:0; pointer-events:none; z-index:60; opacity:0; background:#180a28;
+    transition:opacity .5s;
+  }
+
+  /* ============ DIALOG ============ */
+  #dialog{
+    position:fixed; left:50%; bottom:4vh; transform:translateX(-50%) translateY(140%);
+    width:min(720px, 92vw); z-index:50;
+    background: linear-gradient(180deg, #6b3d22, #50301a);
+    border:4px solid var(--gold-dark); outline:4px solid var(--wood-dark);
+    border-radius:10px; padding:14px 18px 14px 14px;
+    display:flex; gap:14px; align-items:flex-start;
+    box-shadow: 0 10px 0 rgba(20,5,35,.4);
+    transition: transform .3s cubic-bezier(.3,1.4,.5,1);
+  }
+  #dialog.show{ transform:translateX(-50%) translateY(0); }
+  #dlg-portrait{
+    width:84px; height:84px; flex:none; image-rendering:pixelated;
+    border:3px solid var(--gold-dark); border-radius:6px; background:#2a1640;
+  }
+  #dlg-body{ flex:1; min-height:84px; }
+  #dlg-name{
+    display:inline-block; font-family:'Jersey 10'; font-size:26px; color:var(--gold);
+    text-shadow:2px 2px 0 var(--wood-dark); margin-bottom:2px; letter-spacing:1px;
+  }
+  #dlg-text{
+    font-size:19px; font-weight:600; color:var(--cream); line-height:1.35;
+    text-shadow:1px 2px 0 rgba(40,16,8,.8); min-height:52px;
+  }
+  #dlg-text .word{ display:inline-block; }
+  #dlg-text span.ch{
+    opacity:0; display:inline-block;
+    transform:translateY(8px) scale(.5) rotate(6deg);
+  }
+  #dlg-text span.ch.on{
+    opacity:1; transform:none;
+    transition: all .15s cubic-bezier(.2,1.9,.4,1);
+  }
+  #dlg-text .kw-g{ color:var(--gold); }
+  #dlg-text .kw-m{ color:#ff9ad0; }
+  #dlg-portrait.talking{ animation: talkwob .24s infinite; }
+  @keyframes talkwob{
+    0%,100%{ transform:rotate(-1.5deg) scale(1); }
+    50%{ transform:rotate(2deg) scale(1.06); }
+  }
+  #dlg-next{
+    position:absolute; right:14px; bottom:8px; font-family:'Jersey 10'; font-size:22px;
+    color:var(--gold); animation:bob .6s infinite alternate;
+  }
+  @keyframes bob{ from{transform:translateY(0)} to{transform:translateY(4px)} }
+
+  /* ============ TITLE ============ */
+  #title{
+    position:fixed; inset:0; z-index:55;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:clamp(6px,1.6vh,18px);
+    padding:5vh 4vw; overflow-y:auto; text-align:center;
+    /* letterbox cinematográfico: oscurece arriba/abajo para legibilidad, deja
+       ver la selva 3D en el centro, y un halo cálido tras el logo */
+    background:
+      radial-gradient(ellipse at 50% 36%, rgba(255,160,80,.20), transparent 60%),
+      linear-gradient(180deg,
+        rgba(18,8,32,.82) 0%, rgba(18,8,32,.30) 20%, transparent 40%,
+        transparent 56%, rgba(18,8,32,.42) 78%, rgba(18,8,32,.88) 100%);
+    animation: titlein .8s ease-out both;
+  }
+  @keyframes titlein{ from{opacity:0} to{opacity:1} }
+
+  #title .kicker{
+    font-family:'Jersey 10'; font-size:clamp(15px,2.3vw,26px); color:var(--magenta);
+    letter-spacing:5px; text-shadow:2px 2px 0 #2a0a20;
+  }
+  #title-logo{ position:relative; }
+  #title h1{
+    margin:.04em 0; font-family:'Jersey 10'; font-size:clamp(54px,12vw,132px);
+    line-height:.82; text-align:center; position:relative;
+    background:linear-gradient(178deg,#fff4cf 0%,#ffd757 40%,#f5a32c 72%,#dd7a1c 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:
+      drop-shadow(0 3px 0 #c9651b) drop-shadow(0 6px 0 #7a2f12)
+      drop-shadow(0 11px 7px rgba(15,4,28,.6));
+    animation: titlefloat 3.6s ease-in-out infinite alternate;
+  }
+  /* destello que barre el logo */
+  #title h1::after{
+    content:attr(data-text); position:absolute; left:0; top:0; right:0; pointer-events:none;
+    background:linear-gradient(105deg, transparent 38%, rgba(255,255,255,.92) 50%, transparent 62%);
+    background-size:220% 100%;
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation: sheen 5s ease-in-out infinite;
+  }
+  @keyframes sheen{
+    0%,55%{ background-position:140% 0; opacity:0 }
+    62%{ opacity:1 } 88%{ background-position:-40% 0; opacity:0 } 100%{ opacity:0 }
+  }
+  @keyframes titlefloat{ from{transform:translateY(-4px) rotate(-.5deg)} to{transform:translateY(6px) rotate(.5deg)} }
+
+  #title .sub{
+    font-family:'Jersey 10'; font-size:clamp(24px,3.6vw,42px); color:var(--cream);
+    text-shadow:2px 3px 0 #7a2f12;
+  }
+
+  #press{ display:flex; flex-direction:column; align-items:center; gap:5px; margin-top:clamp(8px,2.4vh,26px); }
+  .press-key{
+    font-family:'Jersey 10'; font-size:clamp(26px,3.6vw,40px); color:#fff;
+    background:rgba(40,16,56,.66); padding:6px 32px 9px; border-radius:8px;
+    border:3px solid var(--gold); text-shadow:2px 2px 0 #2a0a20;
+    box-shadow:0 0 18px rgba(255,206,74,.35), inset 0 0 12px rgba(255,206,74,.12);
+    animation: pulseglow 1.5s ease-in-out infinite;
+  }
+  @keyframes pulseglow{
+    0%,100%{ box-shadow:0 0 14px rgba(255,206,74,.28), inset 0 0 10px rgba(255,206,74,.1); transform:translateY(0); }
+    50%{ box-shadow:0 0 32px rgba(255,206,74,.6), inset 0 0 18px rgba(255,206,74,.24); transform:translateY(-2px); }
+  }
+  .press-alt{
+    font-family:'Jersey 10'; font-size:clamp(15px,1.9vw,21px); color:#f0c6e2;
+    text-shadow:1px 2px 0 rgba(20,5,35,.9); letter-spacing:1px; opacity:.9;
+  }
+
+  #controls{
+    display:grid; grid-template-columns:auto 1fr; gap:7px 22px; align-items:center;
+    margin-top:clamp(6px,2vh,20px); max-width:560px;
+    font-size:clamp(14px,1.7vw,17px); font-weight:600; color:var(--cream);
+    text-shadow:1px 2px 0 rgba(20,5,35,.8); text-align:left;
+    background:linear-gradient(180deg, rgba(30,14,48,.66), rgba(20,8,35,.66));
+    padding:16px 26px; border-radius:10px;
+    border:2px solid rgba(255,206,74,.4);
+    box-shadow:0 8px 0 rgba(15,4,28,.4), inset 0 0 18px rgba(255,206,74,.06);
+  }
+  #controls span{ line-height:1.2; }
+  .keycap{
+    justify-self:start; display:inline-block; min-width:1.4em; text-align:center;
+    font-family:'Jersey 10'; font-size:clamp(15px,1.9vw,20px); font-weight:400;
+    color:var(--gold); background:linear-gradient(180deg,#3a2350,#241038);
+    border:2px solid var(--gold-dark); border-bottom-width:4px; border-radius:6px;
+    padding:2px 9px 3px; box-shadow:0 2px 0 rgba(0,0,0,.35); white-space:nowrap;
+  }
+
+  #title .lore{
+    margin-top:clamp(8px,2.2vh,22px);
+    font-size:clamp(13px,1.6vw,15px); font-weight:600; color:#e8b8d8;
+    text-shadow:1px 2px 0 rgba(20,5,35,.9); max-width:600px; text-align:center;
+    line-height:1.45; opacity:.92;
+  }
+  #title .lore b{ color:#ff9ad0; font-weight:600; }
+
+  /* en pantallas bajas, recorta lo accesorio para que NADA se solape */
+  @media (max-height:780px){ #title .lore{ display:none; } }
+  @media (max-height:620px){ #controls{ display:none; } }
+
+  /* ============ VICTORY ============ */
+  #victory{
+    position:fixed; inset:0; z-index:56; display:none; flex-direction:column;
+    align-items:center; justify-content:center;
+    background: radial-gradient(ellipse at 50% 30%, rgba(255,220,120,.18), transparent 55%),
+                rgba(18,8,32,.72);
+  }
+  #victory.show{ display:flex; }
+  #victory h1{
+    font-family:'Jersey 10'; font-size:clamp(56px,9vw,110px); color:var(--gold); line-height:.9;
+    text-shadow:0 4px 0 #c9651b, 0 8px 0 #7a2f12, 0 13px 0 rgba(20,5,35,.55);
+    -webkit-text-stroke:2px #7a2f12; text-align:center;
+  }
+  #victory .sub{
+    font-family:'Jersey 10'; font-size:32px; color:var(--cream); margin-top:6px;
+    text-shadow:2px 2px 0 #7a2f12;
+  }
+  #stats{
+    margin-top:36px; display:flex; flex-direction:column; gap:10px;
+    background:linear-gradient(180deg,#6b3d22,#50301a); border:4px solid var(--gold-dark);
+    outline:4px solid var(--wood-dark); border-radius:10px; padding:20px 34px;
+  }
+  .stat-row{ display:flex; align-items:center; gap:14px; }
+  .stat-row canvas{ width:32px; height:32px; image-rendering:pixelated; }
+  .stat-row span{
+    font-family:'Jersey 10'; font-size:30px; color:var(--cream);
+    text-shadow:2px 2px 0 var(--wood-dark);
+  }
+  .stat-row span b{ color:var(--gold); font-weight:400; }
+  #again{
+    margin-top:30px; font-family:'Jersey 10'; font-size:30px; color:#fff;
+    background:rgba(40,16,56,.7); padding:6px 24px 8px; border-radius:6px;
+    border:3px solid var(--gold); cursor:pointer; text-shadow:2px 2px 0 #2a0a20;
+  }
+  #again:hover{ background:rgba(90,40,110,.8); }
+</style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="underwater"></div>
+  <div id="crt"></div>
+  <div id="vignette-dmg"></div>
+  <div id="fader"></div>
+
+  <div id="hud">
+    <div class="hud-corner" id="hud-tl">
+      <div class="hud-row"><div id="health"></div></div>
+      <div id="air"><div id="air-fill"></div></div>
+    </div>
+    <div class="hud-corner" id="hud-tr">
+      <div class="hud-row"><span class="hud-num" id="n-firefly">0/44</span><canvas id="i-firefly"></canvas></div>
+      <div class="hud-row"><div id="orchid-slots"></div></div>
+      <div class="hud-row"><span class="hud-num" id="n-feather">0/5</span><canvas id="i-feather"></canvas></div>
+      <div class="hud-row" id="row-idol" style="display:none"><span class="hud-num" id="n-idol">1</span><canvas id="i-idol"></canvas></div>
+    </div>
+    <div id="hint"></div>
+    <div id="banner"><h2 id="banner-h"></h2><p id="banner-p"></p></div>
+  </div>
+
+  <div id="dialog">
+    <canvas id="dlg-portrait" width="14" height="14"></canvas>
+    <div id="dlg-body">
+      <span id="dlg-name"></span>
+      <div id="dlg-text"></div>
+    </div>
+    <div id="dlg-next">▼ E</div>
+  </div>
+
+  <div id="title">
+    <span class="kicker">◆ UN TRIBUTO A LOS PLATAFORMAS DE LOS 90 ◆</span>
+    <div id="title-logo">
+      <h1 data-text="NAHU &amp; GAVI">NAHU &amp; GAVI</h1>
+    </div>
+    <div class="sub">~ y el Ídolo del Sol ~</div>
+    <div id="press">
+      <span class="press-key">PULSA ENTER</span>
+      <span class="press-alt">o ESPACIO · o haz clic para empezar</span>
+    </div>
+    <div id="controls">
+      <kbd class="keycap">WASD</kbd><span>mover a Nahu (o flechas)</span>
+      <kbd class="keycap">ESPACIO</kbd><span>saltar · en el aire ¡Gavi aletea! (×4) · buceando, subir</span>
+      <kbd class="keycap">J / clic</kbd><span>zarpazo · en el aire picotazo de Gavi</span>
+      <kbd class="keycap">K</kbd><span>picotazo-bomba · en el agua ¡bucear!</span>
+      <kbd class="keycap">E</kbd><span>hablar</span>
+      <kbd class="keycap">Ratón</kbd><span>arrastrar gira la cámara · rueda hace zoom</span>
+    </div>
+    <p class="lore">La hechicera <b>ZONZA</b> robó los nueve Ídolos del Sol y la selva quedó
+    atrapada en un atardecer eterno. Solo un jaguar muy dormilón y el gavilán que vive
+    en su mochila pueden despertarla...</p>
+  </div>
+
+  <div id="victory">
+    <h1>¡NIVEL COMPLETADO!</h1>
+    <div class="sub">Selva Susurrante</div>
+    <div id="stats"></div>
+    <button id="again">JUGAR OTRA VEZ</button>
+  </div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js" } }
+</script>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
