@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PHYSICS } from '../config.js';
+import { PHYSICS, POUND } from '../config.js';
 
 // Animación procedural del dúo: squash & stretch con muelle, ciclo de
 // carrera, nado (crol y braza), poses de combate, sueño, celebración y el
@@ -62,7 +62,25 @@ export function animatePlayer(p, dt) {
   let leanX = 0, bobY = 0, rollZ = 0;
   const L = p.legs, A = p.arms;
 
-  if (p.swimming) {
+  if (p.poundLandT > 0 && p.onGround) {
+    // ---- impacto del bombazo: aplastado contra el suelo, recupera con muelle ----
+    const k = 1 - p.poundLandT / POUND.LAND_T;               // 0 → 1
+    const splat = Math.pow(Math.max(0, 1 - k / 0.5), 1.4);   // máximo al tocar, 0 a mitad
+    bobY = -0.34 * splat;
+    leanX = 0.5 * splat;
+    A[0].shoulder.rotation.x = 0.3 + splat * 1.0;            // brazos al frente, palmas al suelo
+    A[1].shoulder.rotation.x = 0.3 + splat * 1.0;
+    A[0].shoulder.rotation.z = 0.5 + splat * 0.7;            // abiertos de par en par
+    A[1].shoulder.rotation.z = -(0.5 + splat * 0.7);
+    L[0].hip.rotation.x = -0.2 - splat * 0.6;                // piernas despatarradas
+    L[1].hip.rotation.x = -0.2 - splat * 0.6;
+    L[0].knee.rotation.x = 0.3 + splat * 0.9;
+    L[1].knee.rotation.x = 0.3 + splat * 0.9;
+    p.head.rotation.x = 0.45 * splat;
+    p.body.rotation.x = 0;                                    // limpia el giro del desplome
+    p.mouth.scale.set(1 + splat * 0.5, 1 + splat * 0.8, 1);  // boca abierta "¡GUH!"
+    for (const e of p.eyes) e.brow.rotation.z = e.side * 0.3 * splat;
+  } else if (p.swimming) {
     const swimMoving = hSpeed > 1.5;
     p.walkPhase += dt * (swimMoving ? (p.diving ? 7 : 10.5) : 3.5);
     const ph = p.walkPhase;
@@ -100,10 +118,30 @@ export function animatePlayer(p, dt) {
     }
     p.mouth.scale.set(1, 1, 1);
   } else if (p.action === 'pound') {
-    p.body.rotation.x += dt * 16;
-    A[0].shoulder.rotation.x = -2.6; A[1].shoulder.rotation.x = -2.6;
-    L[0].hip.rotation.x = 0.9; L[1].hip.rotation.x = 0.9;
-    L[0].knee.rotation.x = 1.4; L[1].knee.rotation.x = 1.4;
+    // bola compacta: brazos abrazando las rodillas, rodillas al pecho
+    const ARM_X = -1.9, ARM_Z = 0.6, HIP = 1.7, KNEE = 1.9;
+    const tt = p.actionT;
+    if (tt < POUND.HANG_FROM) {
+      // RECOGIDA: de extendido a bola en un instante
+      const k = tt / POUND.HANG_FROM;
+      p.body.rotation.x = k * 0.8;
+      A[0].shoulder.rotation.x = -0.4 + (ARM_X + 0.4) * k;
+      A[1].shoulder.rotation.x = -0.4 + (ARM_X + 0.4) * k;
+      A[0].shoulder.rotation.z = ARM_Z * k; A[1].shoulder.rotation.z = -ARM_Z * k;
+      L[0].hip.rotation.x = HIP * k; L[1].hip.rotation.x = HIP * k;
+      L[0].knee.rotation.x = KNEE * k; L[1].knee.rotation.x = KNEE * k;
+      p.head.rotation.x = 0.5 * k;
+      bobY = -0.1 * k;
+    } else {
+      // ÁPICE (gira lento, suspense) y DESPLOME (drill rápido a plomo)
+      const spin = tt < POUND.HANG_TO ? 6 : 30;
+      p.body.rotation.x += dt * spin;
+      A[0].shoulder.rotation.x = ARM_X; A[1].shoulder.rotation.x = ARM_X;
+      A[0].shoulder.rotation.z = ARM_Z; A[1].shoulder.rotation.z = -ARM_Z;
+      L[0].hip.rotation.x = HIP; L[1].hip.rotation.x = HIP;
+      L[0].knee.rotation.x = KNEE; L[1].knee.rotation.x = KNEE;
+      p.head.rotation.x = 0.5;
+    }
   } else if (p.action === 'jiggy') {
     const tt = p.actionT;
     p.body.rotation.x = 0;

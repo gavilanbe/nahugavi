@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PHYSICS, WATER_Y } from '../config.js';
+import { PHYSICS, POUND, WATER_Y } from '../config.js';
 import { buildPlayerMesh } from './mesh.js';
 import { PlayerFx } from './fx.js';
 import { animatePlayer } from './animate.js';
@@ -38,6 +38,8 @@ export class Player {
     this.actionT = 0;
     this.attackHit = null;
     this.poundLanded = null;
+    this.poundLandT = 0;   // temporizador de la pose de impacto del bombazo
+    this._slammed = false; // ¿ya disparó el desplome del bombazo?
     this.celebrateT = 0;
     this.swipeSide = 1;    // alterna la zarpa
     this.flapAnim = 0;
@@ -139,6 +141,7 @@ export class Player {
 
     if (this.invuln > 0) this.invuln -= dt;
     if (this.hurtFlash > 0) this.hurtFlash -= dt;
+    if (this.poundLandT > 0) this.poundLandT -= dt;
 
     const camYaw = G.camRig.yaw;
 
@@ -240,13 +243,20 @@ export class Player {
     }
     if (canAct && input.pressed.has('pound') && !this.onGround && this.action !== 'pound') {
       this.action = 'pound'; this.actionT = 0;
-      this.vel.set(0, 4.5, 0); // saltito de anticipación, luego desplome
-      this._poundHop = 0.16;
-      G.audio.poundStart();
+      this._slammed = false;
+      this.vel.set(0, POUND.POP_V, 0); // se recoge en bola y se eleva un poco
+      this.squashV += 2.6;             // estirón al recogerse
     }
     if (this.action === 'pound') {
-      this._poundHop -= dt;
-      if (this._poundHop <= 0 && this.vel.y > -27) this.vel.y = -29;
+      if (this.actionT >= POUND.HANG_FROM && this.actionT < POUND.HANG_TO) {
+        // ápice: flota un instante (el "suspense") y mata la deriva → cae a plomo
+        this.vel.y += (0.6 - this.vel.y) * Math.min(1, 16 * dt);
+        this.vel.x *= 1 - Math.min(1, 12 * dt);
+        this.vel.z *= 1 - Math.min(1, 12 * dt);
+      } else if (this.actionT >= POUND.HANG_TO) {
+        if (!this._slammed) { this._slammed = true; G.audio.poundStart(); } // whoosh al caer
+        if (this.vel.y > -POUND.SLAM_V) this.vel.y = -POUND.SLAM_V;          // ¡DESPLOME!
+      }
     }
 
     // ----- movimiento horizontal -----
@@ -327,7 +337,8 @@ export class Player {
       this.vel.y += (target - this.pos.y) * 14 * dt - this.vel.y * 4 * dt;
     } else {
       // el picotazo flota (las alas de Gavi sostienen), el bombazo cae a saco
-      const g = (this.action === 'pound') ? GRAVITY * 1.6
+      const g = (this.action === 'pound')
+        ? (this.actionT < POUND.HANG_TO ? GRAVITY * 0.5 : GRAVITY * 2.2) // ligera al subir/flotar, brutal al desplomar
         : (this.action === 'peck') ? GRAVITY * 0.2 : GRAVITY;
       this.vel.y -= g * dt;
       if (this.vel.y < -PHYSICS.MAX_FALL) this.vel.y = -PHYSICS.MAX_FALL;
@@ -363,12 +374,16 @@ export class Player {
         this.squashV -= Math.min(5, -fell * 0.25); // squash de aterrizaje según impacto
         if (this.action === 'pound') {
           this.action = '';
-          this.poundLanded = { x: this.pos.x, y: this.pos.y, z: this.pos.z, r: 2.8 };
+          this.poundLandT = POUND.LAND_T;      // dispara la pose de aplastamiento
+          this.squashV -= 4;                   // chafado extra de impacto
+          this.poundLanded = { x: this.pos.x, y: this.pos.y, z: this.pos.z, r: 3.0 };
           this.fxs.shockwave(this);
           G.audio.poundHit();
-          G.shake(0.45);
-          G.hitStop(0.06);
-          G.fx.dustRing(this.pos.x, gY, this.pos.z);
+          G.shake(0.6);
+          G.hitStop(0.08);
+          G.fx.dustRing(this.pos.x, gY, this.pos.z, 1.5);   // anillo de polvo más ancho
+          G.fx.pop(this.pos.x, gY + 0.2, this.pos.z, '#ffe6a0', 1.7); // destello del golpe
+          G.fx.burst(this.pos.x, gY + 0.1, this.pos.z, '#c8b088', 9, 5); // terrones de tierra
         } else if (fell < -14) {
           G.fx.dustRing(this.pos.x, gY, this.pos.z, 0.5);
           G.audio.land();

@@ -46,6 +46,16 @@ export const PHYSICS = {
   KILL_Y: -20,           // caer por debajo = desmayo
 };
 
+// ---------- bombazo (ground pound) ----------
+// Las tres fases del golpe al suelo, medidas en segundos desde que se activa.
+export const POUND = {
+  POP_V: 5.6,        // impulso del saltito de anticipación (se recoge en bola)
+  HANG_FROM: 0.16,   // empieza la flotación en el ápice (el "suspense")
+  HANG_TO: 0.30,     // termina la flotación y comienza el desplome a plomo
+  SLAM_V: 34,        // velocidad del desplome (= MAX_FALL: lo más duro posible)
+  LAND_T: 0.32,      // duración de la pose de impacto/recuperación
+};
+
 // ---------- mundo ----------
 export const WATER_Y = -1.4;
 
