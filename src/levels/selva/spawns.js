@@ -71,5 +71,7 @@ export function spawns(world, heightAt) {
     [36, -24], [40, -28], [-13, -26], [14, 8],
   ];
 
-  return { fireflies: fireflies3d, orchids, feathers, mangos, crates, sombras, axol: { x: 3.5, z: -9 } };
+  // Axol: justo delante del altar (centro 0,-12), despejado de los 4 pilares
+  // de las diagonales (±3.25, -8.75 / -15.25) para que no se solape con ninguno.
+  return { fireflies: fireflies3d, orchids, feathers, mangos, crates, sombras, axol: { x: 0, z: -7.5 } };
 }

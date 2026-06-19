@@ -20,6 +20,8 @@ export class UI {
       bannerP: document.getElementById('banner-p'),
       title: document.getElementById('title'),
       victory: document.getElementById('victory'),
+      pause: document.getElementById('pause'),
+      pauseBtn: document.getElementById('pause-btn'),
       stats: document.getElementById('stats'),
       vignette: document.getElementById('vignette-dmg'),
       fader: document.getElementById('fader'),
@@ -70,6 +72,12 @@ export class UI {
   // ---------- HUD ----------
   showHUD() { this.el.hud.style.display = 'block'; }
   hideTitle() { this.el.title.style.display = 'none'; }
+
+  // ---------- pausa ----------
+  showPause() { this.el.pause.classList.add('show'); }
+  hidePause() { this.el.pause.classList.remove('show'); }
+  showPauseBtn() { this.el.pauseBtn.classList.add('show'); }
+  hidePauseBtn() { this.el.pauseBtn.classList.remove('show'); }
 
   setHealth(n) {
     this.healthCanvases.forEach((c, i) => c.classList.toggle('lost', i >= n));

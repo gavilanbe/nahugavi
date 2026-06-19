@@ -47,6 +47,9 @@ export class Game {
     G.hitStop = (s) => { G.hitStopT = Math.max(G.hitStopT, s); };
     G.victory = () => {
       G.state = 'victory';
+      G.paused = false;
+      G.ui.hidePause();
+      G.ui.hidePauseBtn();
       G.ui.showVictory({
         orchids: G.ents.counts.orchids,
         fireflies: G.ents.counts.fireflies,
@@ -73,6 +76,32 @@ export class Game {
       if (G.state === 'title') this.startGame();
     });
 
+    // ---------- pausa ----------
+    G.paused = false;
+    this.togglePause = (on) => {
+      if (G.state !== 'play') return;
+      const want = (on == null) ? !G.paused : on;
+      if (want === G.paused) return;
+      G.paused = want;
+      if (want) {
+        G.ui.showPause();
+      } else {
+        G.ui.hidePause();
+        G.input.keys.clear();      // suelta cualquier tecla "mantenida" durante la pausa
+        G.input.pressed.clear();
+      }
+    };
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat) return;
+      if ((e.code === 'Escape' || e.code === 'KeyP') && G.state === 'play') {
+        e.preventDefault();
+        this.togglePause();
+      }
+    });
+    G.ui.el.pauseBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); this.togglePause(true); });
+    document.getElementById('resume').addEventListener('pointerdown', (e) => { e.preventDefault(); this.togglePause(false); });
+    document.getElementById('restart').addEventListener('pointerdown', (e) => { e.preventDefault(); location.reload(); });
+
     this.clock = new THREE.Clock();
   }
 
@@ -82,6 +111,7 @@ export class Game {
     G.audio.start();
     G.ui.hideTitle();
     G.ui.showHUD();
+    G.ui.showPauseBtn();
     G.state = 'play';
     G.input.pressed.clear();           // descarta la tecla/clic que arrancó (sin salto/zarpazo fantasma)
     G.camRig.snapBehindPlayer();
@@ -93,6 +123,7 @@ export class Game {
     const loop = () => {
       requestAnimationFrame(loop);
       const rawDt = Math.min(this.clock.getDelta(), 0.05);
+      if (G.paused) { G.renderer.render(); G.input.endFrame(); return; }  // congela todo, mantiene el frame visible
       let dt = rawDt;
       if (G.hitStopT > 0) {           // congelación de frame en impactos gordos
         G.hitStopT -= rawDt;
