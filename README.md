@@ -1,48 +1,92 @@
-# 🐆 Nahu & Gavi — El Ídolo del Sol
+<div align="center">
 
-Un plataformas 3D en el navegador, tributo a los clásicos tipo *Banjo-Kazooie*, donde Nahu y Gavi recorren la **Selva Susurrante** para recuperar el primero de los nueve Ídolos del Sol que robó la hechicera Zonza. ✨
+<img src="docs/screenshots/01-title.png" alt="NAHU & GAVI — El Ídolo del Sol" width="640">
 
-## ✨ Características
+# 🐆 NAHU & GAVI · El Ídolo del Sol
 
-- 🌴 **Mundo 3D explorable** con look retro pixelado (resolución interna fija de 224px y scanlines tipo CRT).
-- 🎨 **100% procedural, cero assets**: geometría, texturas, audio y música se generan en código. No hay imágenes ni sonidos en disco.
-- 🦘 **Movimiento de plataformas completo**: correr, saltar, aletear, nadar y bucear (con medidor de aire).
-- ⚔️ **Combate y enemigos**: zarpazos contra las Sombras que deambulan y persiguen.
-- 💎 **Coleccionables y misiones**: luciérnagas, orquídeas, plumas y mangos, cajas rompibles, un NPC chamán (Axol) y la coreografía del Ídolo del Sol.
-- 🎵 **Audio generado en vivo**: motor de sonido con buses y efectos, más un secuenciador de marimba pentatónica a 84 BPM.
-- 🌅 **Atmósfera dinámica**: ciclo de mood (atardecer → día), niebla, cielo con gradiente y tinte subacuático.
-- 🏗️ **Arquitectura motor/contenido separados**: añadir un nivel nuevo es copiar una carpeta y cambiar heightmap, landmarks y misión.
+**Un plataformas 3D de navegador, tributo a los clásicos coleccioneros de los 90.**
 
-## 🚀 Cómo jugar / ejecutar
+[![jugar ahora](https://img.shields.io/badge/▶_jugar_ahora-ffce4a?style=for-the-badge&logoColor=white&labelColor=5a3320)](https://gavilanbe.github.io/nahugavi/)
 
-No hace falta instalar nada: Three.js se carga vía CDN y no hay paso de build. Solo necesitas servir la carpeta como estático.
+![Three.js](https://img.shields.io/badge/Three.js-WebGL-111?style=flat-square)
+![sin dependencias](https://img.shields.io/badge/assets-0_·_100%25_procedural-2e8038?style=flat-square)
+![sin build](https://img.shields.io/badge/build-ninguno-2e8038?style=flat-square)
+![estilo](https://img.shields.io/badge/look-low--poly_·_CRT-c06a38?style=flat-square)
+![licencia](https://img.shields.io/badge/licencia-MIT-e8b050?style=flat-square)
+
+</div>
+
+---
+
+## 🌴 Qué es esto
+
+**NAHU & GAVI** es un plataformas 3D que corre en cualquier navegador, homenaje a
+los *collectathon* tipo Banjo-Kazooie. Exploras la **Selva Susurrante** con Nahu
+(el jaguar) y Gavi (su compañera aladita): corres, saltas, aleteas, nadas y buceas
+recogiendo luciérnagas, orquídeas y plumas mientras esquivas a las Sombras.
+
+Todo es **100% procedural y cero assets**: geometría, texturas, audio y música se
+generan por código. No hay ni una imagen ni un archivo de sonido en disco — solo
+JavaScript, un `<canvas>` WebGL y mucho `Math`.
+
+## 📖 La historia
+
+> La hechicera **Zonza** ha robado los **nueve Ídolos del Sol** y los ha
+> desperdigado por el mundo. Sin ellos, la luz se apaga.
+>
+> Nahu despierta en la **Selva Susurrante** con Gavi revoloteando a su lado:
+> *"¡Emergencia nivel pluma erizada!"*. Hay que recuperar el **primer Ídolo** —
+> y para eso, antes, ayudar al chamán **Axol** y reunir las orquídeas de la jungla.
+
+## 🎮 Cómo se juega
+
+| Tecla | Acción |
+|---|---|
+| `W A S D` / `← ↑ ↓ →` | Mover a Nahu |
+| `Espacio` | Saltar · en el aire Gavi aletea (×4) · en agua, subir |
+| `J` / clic izq. | Zarpazo · en el aire, picotazo de Gavi |
+| `K` | Picotazo-bomba · en el agua, bucear |
+| `E` | Hablar / interactuar |
+| `Ratón` | Arrastrar para girar la cámara · rueda para zoom |
+| `Enter` | Empezar / confirmar |
+
+En móvil aparecen mandos táctiles automáticamente.
+
+## 📸 Capturas
+
+| En plena selva | Acción y diálogos |
+|:--:|:--:|
+| ![gameplay](docs/screenshots/02-play.png) | ![acción](docs/screenshots/03-action.png) |
+
+## ▶️ Jugar
+
+La forma más fácil: **[gavilanbe.github.io/nahugavi](https://gavilanbe.github.io/nahugavi/)**.
+
+### En local
+
+No hay que instalar ni compilar nada (Three.js se carga por CDN). Solo sírvelo como estático:
 
 ```bash
-# Opción 1: con el Makefile (sirve y abre el navegador en http://localhost:4321)
-make run
-
-# Opción 2: directamente con Python
-python3 -m http.server 4321
-# y abre http://localhost:4321/ en el navegador
+git clone https://github.com/gavilanbe/nahugavi.git
+cd nahugavi
+python3 -m http.server 4321   # o: make run
+# abre http://localhost:4321
 ```
 
-## 🎮 Controles
+## 🛠️ Bajo el capó
 
-- **WASD** o **flechas** → moverse
-- **Espacio** → saltar / aletear
-- **J** o **clic izquierdo** → atacar (zarpazo)
-- **K** → golpe al suelo (pound)
-- **E** → interactuar (hablar con NPC, etc.)
-- **Enter** → empezar / confirmar
+- **Vanilla JS (ES modules)**, sin framework ni bundler — **Three.js 0.165** vía import map de jsdelivr.
+- **Render:** resolución interna fija (224 px) escalada con `image-rendering: pixelated` + scanlines/viñeta CRT.
+- **Todo procedural:** geometría low-poly, texturas pixel-art en `<canvas>`, niebla, cielo con gradiente y tinte subacuático generados en código.
+- **Audio en vivo:** Web Audio API con buses + efectos y un secuenciador de marimba pentatónica a 84 BPM (sin archivos).
+- **Motor/contenido separados:** añadir un nivel = copiar una carpeta y cambiar `heightmap`, `landmarks` y `quest`. Ver **[`ARCHITECTURE.md`](ARCHITECTURE.md)**.
 
-## 🛠️ Tecnología
+## 📦 Créditos
 
-- **JavaScript (ES modules)** puro, sin framework ni bundler.
-- **Three.js 0.165** vía CDN (import map de jsdelivr).
-- **Web Audio API** para todo el sonido y la música procedural.
-- **HTML5 Canvas** para las texturas pixel-art y los retratos del HUD.
-- Sin dependencias instalables ni build step: se sirve estático.
+Parte de mi colección de juegos. Dirigido y publicado por [**@gavilanbe**](https://github.com/gavilanbe).
 
-## 📦 Parte de mi colección de juegos
+## 📄 Licencia
 
-Este es uno de mis juegos hobby. Échale un ojo al resto de mi colección en mi perfil de GitHub. 🎮
+[MIT](LICENSE) — úsalo y trastéalo a gusto.
+
+<div align="center"><sub>HECHO CON RECTÁNGULOS EN 3D · 2026</sub></div>
